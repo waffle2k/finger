@@ -112,7 +112,7 @@ jobs:
         lcov --remove coverage/coverage.info '/usr/*' '*/test_*' '*/gtest/*' --output-file coverage/coverage_filtered.info
         
         # Generate HTML report
-        genhtml coverage/coverage_filtered.info --output-directory coverage/html
+        genhtml coverage/coverage_filtered.info --output-directory coverage/html --ignore-errors mismatch
         
         # Display coverage summary
         lcov --summary coverage/coverage_filtered.info
