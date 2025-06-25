@@ -6,6 +6,11 @@
 const std::filesystem::path kPATH{"/var/finger/users/"};
 
 std::string process(const std::string &username) {
+  RealFilesystemWrapper fs;
+  return process(username, fs);
+}
+
+std::string process(const std::string &username, const IFilesystemWrapper &fs) {
   try {
     // Check for directory traversal patterns
     if (username.find("../") != std::string::npos ||
@@ -31,39 +36,19 @@ std::string process(const std::string &username) {
   // Attempt to open the plan file (if any) and return the contents as a string
   std::filesystem::path planPath = kPATH / username;
 
-  // Check if the plan file exists
-  if (!std::filesystem::exists(planPath)) {
+  // Check if the plan file exists using the filesystem wrapper
+  if (!fs.exists(planPath)) {
     // If no plan file exists, return just the username
     return username;
   }
 
-  // Try to read the plan file
-  try {
-    std::ifstream planFile(planPath);
-    if (!planFile.is_open()) {
-      return username;
-    }
+  // Try to read the plan file using the filesystem wrapper
+  std::string content = fs.read_file(planPath);
 
-    std::string content;
-    std::string line;
-    while (std::getline(planFile, line)) {
-      content += line + "\n";
-    }
-
-    // Return the plan content with proper line endings
-    if (!content.empty() && content.back() == '\n') {
-      content.pop_back(); // Remove the last newline
-      content += "\r\n";
-      return content;
-    } else if (!content.empty()) {
-      content += "\r\n";
-      return content;
-    } else {
-      // If file exists but is empty, return just the username
-      return username;
-    }
-  } catch (...) {
-    // If there's any error reading the file, just return the username
+  if (content.empty()) {
+    // If file exists but is empty or couldn't be read, return just the username
     return username;
   }
+
+  return content;
 }

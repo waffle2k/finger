@@ -37,7 +37,7 @@ jobs:
       if: matrix.os == 'ubuntu-latest'
       run: |
         sudo apt-get update
-        sudo apt-get install -y libboost-system-dev libgtest-dev build-essential
+        sudo apt-get install -y libboost-system-dev libgtest-dev libgmock-dev build-essential
 
     - name: Setup build directory
       run: |
@@ -83,7 +83,7 @@ jobs:
     - name: Install dependencies and coverage tools
       run: |
         sudo apt-get update
-        sudo apt-get install -y libboost-system-dev libgtest-dev build-essential lcov
+        sudo apt-get install -y libboost-system-dev libgtest-dev libgmock-dev build-essential lcov
 
     - name: Setup build directory with coverage
       run: |

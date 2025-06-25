@@ -6,8 +6,9 @@ project('finger', 'cpp',
 # Find Boost dependencies - prefer static libraries
 boost_dep = dependency('boost', modules : ['system'], static : true)
 
-# Find Google Test dependency
+# Find Google Test and Google Mock dependencies
 gtest_dep = dependency('gtest', main : true, required : true)
+gmock_dep = dependency('gmock', main : true, required : true)
 
 executable('finger',
   'main.cpp','handler.cpp',
@@ -18,7 +19,13 @@ executable('finger',
 # Test executable
 test_exe = executable('test_handler',
   'test_handler.cpp', 'handler.cpp',
-  dependencies : [boost_dep, gtest_dep])
+  dependencies : [boost_dep, gtest_dep, gmock_dep])
 
-# Register the test
+# Mock test executable
+test_mock_exe = executable('test_handler_mock',
+  'test_handler_mock.cpp', 'handler.cpp',
+  dependencies : [boost_dep, gtest_dep, gmock_dep])
+
+# Register the tests
 test('handler_tests', test_exe)
+test('handler_mock_tests', test_mock_exe)
