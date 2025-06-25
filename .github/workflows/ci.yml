@@ -106,16 +106,16 @@ jobs:
         mkdir -p coverage
         
         # Capture coverage data
-        lcov --capture --directory builddir --output-file coverage/coverage.info --ignore-errors mismatch
+        lcov --capture --directory builddir --output-file coverage/coverage.info --ignore-errors mismatch ...
         
         # Remove system headers and test files from coverage
-        lcov --remove coverage/coverage.info '/usr/*' '*/test_*' '*/gtest/*' --output-file coverage/coverage_filtered.info --ignore-errors mismatch
+        lcov --remove coverage/coverage.info '/usr/*' '*/test_*' '*/gtest/*' --output-file coverage/coverage_filtered.info --ignore-errors mismatch ...
         
         # Generate HTML report
         genhtml coverage/coverage_filtered.info --output-directory coverage/html 
         
         # Display coverage summary
-        lcov --summary coverage/coverage_filtered.info --ignore-errors mismatch
+        lcov --summary coverage/coverage_filtered.info --ignore-errors mismatch ...
 
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v3
