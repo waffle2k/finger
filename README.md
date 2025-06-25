@@ -1,4 +1,8 @@
 # finger
+
+[![CI](https://github.com/waffle2k/finger/workflows/CI/badge.svg)](https://github.com/waffle2k/finger/actions)
+[![codecov](https://codecov.io/gh/waffle2k/finger/branch/main/graph/badge.svg)](https://codecov.io/gh/waffle2k/finger)
+
 A silly finger service written in c++20
 
 # Compiling:

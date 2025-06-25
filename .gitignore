@@ -24,6 +24,14 @@ test_handler
 *.swp
 *.swo
 
+# Coverage files
+*.gcda
+*.gcno
+*.gcov
+coverage/
+coverage.info
+coverage_filtered.info
+
 # OS generated files
 .DS_Store
 .DS_Store?
