@@ -15,34 +15,8 @@ public:
 
 class RealFilesystemWrapper : public IFilesystemWrapper {
 public:
-  bool exists(const std::filesystem::path &path) const override {
-    return std::filesystem::exists(path);
-  }
-
-  std::string read_file(const std::filesystem::path &path) const override {
-    std::ifstream file(path);
-    if (!file.is_open()) {
-      return "";
-    }
-
-    std::string content;
-    std::string line;
-    while (std::getline(file, line)) {
-      content += line + "\n";
-    }
-
-    // Return the content with proper line endings
-    if (!content.empty() && content.back() == '\n') {
-      content.pop_back(); // Remove the last newline
-      content += "\r\n";
-      return content;
-    } else if (!content.empty()) {
-      content += "\r\n";
-      return content;
-    }
-
-    return "";
-  }
+  bool exists(const std::filesystem::path &path) const override;
+  std::string read_file(const std::filesystem::path &path) const override;
 };
 
 class InvalidInput : public std::runtime_error {
@@ -50,5 +24,8 @@ public:
   InvalidInput(const std::string &what = "") : std::runtime_error(what) {}
 };
 
+const std::filesystem::path kPATH{"/var/finger/users/"};
+
 std::string process(const std::string &username);
-std::string process(const std::string &username, const IFilesystemWrapper &fs);
+std::string process(const std::string &username, const IFilesystemWrapper &fs,
+                    const std::filesystem::path &basepath = kPATH);

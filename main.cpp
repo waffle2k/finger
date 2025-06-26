@@ -1,5 +1,3 @@
-
-
 #include <iostream>
 
 #include <boost/asio/co_spawn.hpp>
@@ -22,8 +20,6 @@ namespace this_coro = boost::asio::this_coro;
 
 awaitable<std::string> dofinger(const std::string &username) {
   co_return process(username);
-  // co_return std::string("this is some finger information for ") + username +
-  // std::string("\r\n");
 }
 
 awaitable<void> echo(tcp::socket socket) {
@@ -31,7 +27,6 @@ awaitable<void> echo(tcp::socket socket) {
     char data[1024];
     auto bytes_read =
         co_await socket.async_read_some(boost::asio::buffer(data), deferred);
-    // strip \r\n from data
     std::string username(data, bytes_read);
     // Remove trailing \r\n characters
     while (!username.empty() &&

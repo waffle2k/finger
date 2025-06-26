@@ -3,14 +3,46 @@
 #include <fstream>
 #include <string_view>
 
-const std::filesystem::path kPATH{"/var/finger/users/"};
+bool RealFilesystemWrapper::exists(const std::filesystem::path &path) const {
+  return std::filesystem::exists(path);
+}
+
+std::string
+RealFilesystemWrapper::read_file(const std::filesystem::path &path) const {
+  std::ifstream file(path);
+  if (!file.is_open()) {
+    return "";
+  }
+
+  std::string content;
+  std::string line;
+
+  while (std::getline(file, line)) {
+    content += line + "\n";
+  }
+
+  if (content.empty()) {
+    return "";
+  }
+
+  // Return the content with proper line endings
+  if (content.back() == '\n') {
+    content.pop_back(); // Remove the last newline
+    content += "\r\n";
+    return content;
+  }
+
+  content += "\r\n";
+  return content;
+}
 
 std::string process(const std::string &username) {
   RealFilesystemWrapper fs;
-  return process(username, fs);
+  return process(username, fs, kPATH);
 }
 
-std::string process(const std::string &username, const IFilesystemWrapper &fs) {
+std::string process(const std::string &username, const IFilesystemWrapper &fs,
+                    const std::filesystem::path &basepath) {
   try {
     // Check for directory traversal patterns
     if (username.find("../") != std::string::npos ||
@@ -34,7 +66,7 @@ std::string process(const std::string &username, const IFilesystemWrapper &fs) {
   }
 
   // Attempt to open the plan file (if any) and return the contents as a string
-  std::filesystem::path planPath = kPATH / username;
+  std::filesystem::path planPath = basepath / username;
 
   // Check if the plan file exists using the filesystem wrapper
   if (!fs.exists(planPath)) {

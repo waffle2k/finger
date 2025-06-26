@@ -4,23 +4,6 @@
 #include <gtest/gtest.h>
 #include <memory>
 
-// Note: This is a demonstration of how to set up Google Mock for filesystem
-// operations. To properly mock std::filesystem::exists, you would need to
-// refactor handler.cpp to use dependency injection or create a filesystem
-// wrapper interface.
-
-// Mock interface for filesystem operations
-/*
-class IFilesystemWrapper {
-public:
-    virtual ~IFilesystemWrapper() = default;
-    virtual bool exists(const std::filesystem::path& path) const = 0;
-    virtual std::string read_file(const std::filesystem::path& path) const = 0;
-};
-*/
-
-#include "handler.hpp"
-
 // Mock implementation
 class MockFilesystemWrapper : public IFilesystemWrapper {
 public:
@@ -99,30 +82,6 @@ TEST_F(ProcessMockTest, MultipleFileOperations) {
   EXPECT_EQ(mock_filesystem->read_file("/path1"), "First file content\r\n");
   EXPECT_FALSE(mock_filesystem->exists("/path2"));
 }
-
-/*
- * REFACTORING SUGGESTION:
- *
- * To properly mock std::filesystem::exists in your handler.cpp, consider:
- *
- * 1. Create a filesystem wrapper interface:
- *    class IFilesystemWrapper {
- *    public:
- *        virtual bool exists(const std::filesystem::path& path) const = 0;
- *        virtual std::string read_file(const std::filesystem::path& path) const
- * = 0;
- *    };
- *
- * 2. Modify process() function to accept the wrapper:
- *    std::string process(const std::string& username,
- *                       const IFilesystemWrapper& fs =
- * RealFilesystemWrapper{});
- *
- * 3. Use dependency injection in tests:
- *    MockFilesystemWrapper mock_fs;
- *    EXPECT_CALL(mock_fs, exists(_)).WillOnce(Return(true));
- *    std::string result = process("testuser", mock_fs);
- */
 
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
