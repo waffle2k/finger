@@ -26,6 +26,12 @@ test_mock_exe = executable('test_handler_mock',
   'test_handler_mock.cpp', 'handler.cpp',
   dependencies : [boost_dep, gtest_dep, gmock_dep])
 
+# Real filesystem test executable
+test_real_fs_exe = executable('test_handler_real_filesystem',
+  'test_handler_real_filesystem.cpp', 'handler.cpp',
+  dependencies : [boost_dep, gtest_dep, gmock_dep])
+
 # Register the tests
 test('handler_tests', test_exe)
 test('handler_mock_tests', test_mock_exe)
+test('handler_real_filesystem_tests', test_real_fs_exe)
