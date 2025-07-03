@@ -1,0 +1,42 @@
+# Build directories
+builddir/
+testbuild/
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+README.md
+*.md
+
+# CI/CD
+.github/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Docker files
+Dockerfile
+.dockerignore
+docker-compose.yml
+
+# Coverage reports
+.codecov.yml
+coverage/
+*.gcov
+*.gcda
+*.gcno
+
+# Temporary files
+*.tmp
+*.temp
+*.log

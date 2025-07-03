@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  finger:
+    build: .
+    ports:
+      - "79:79"
+    volumes:
+      - ./users:/var/finger/users
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "79"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Example using published image instead of building locally
+  # finger:
+  #   image: ghcr.io/waffle2k/finger:latest
+  #   ports:
+  #     - "79:79"
+  #   volumes:
+  #     - ./users:/var/finger/users
+  #   restart: unless-stopped
