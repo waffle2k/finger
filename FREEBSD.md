@@ -41,6 +41,7 @@ Create `/usr/local/etc/rc.d/fingerd`:
 
 ```sh
 #!/bin/sh
+
 # PROVIDE: fingerd
 # REQUIRE: NETWORKING
 # KEYWORD: shutdown
@@ -49,37 +50,15 @@ Create `/usr/local/etc/rc.d/fingerd`:
 
 name="fingerd"
 rcvar="fingerd_enable"
-command="/usr/local/bin/finger"
+command="/usr/sbin/daemon"
+command_args="-f -p /var/run/fingerd.pid /usr/local/bin/finger"
 pidfile="/var/run/fingerd.pid"
-command_interpreter=""
-
-start_cmd="fingerd_start"
-stop_cmd="fingerd_stop"
-status_cmd="fingerd_status"
-
-fingerd_start() {
-    echo "Starting ${name}."
-    /usr/sbin/daemon -p ${pidfile} -f ${command}
-}
-
-fingerd_stop() {
-    if [ -f ${pidfile} ]; then
-        echo "Stopping ${name}."
-        kill $(cat ${pidfile}) && rm -f ${pidfile}
-    else
-        echo "${name} is not running."
-    fi
-}
-
-fingerd_status() {
-    if [ -f ${pidfile} ] && kill -0 $(cat ${pidfile}) 2>/dev/null; then
-        echo "${name} is running as pid $(cat ${pidfile})."
-    else
-        echo "${name} is not running."
-    fi
-}
+# procname must be the full path so rc.subr can match it against ps output
+procname="/usr/local/bin/finger"
 
 load_rc_config $name
+: ${fingerd_enable:=NO}
+
 run_rc_command "$1"
 ```
 
