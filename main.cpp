@@ -8,6 +8,7 @@
 #include <boost/asio/signal_set.hpp>
 #include <boost/asio/write.hpp>
 #include <cstdio>
+#include <syslog.h>
 
 #include "handler.hpp"
 
@@ -44,7 +45,7 @@ awaitable<void> echo(tcp::socket socket) {
     co_await async_write(socket, boost::asio::buffer(response), deferred);
     co_return;
   } catch (std::exception &e) {
-    std::printf("echo Exception: %s\n", e.what());
+    syslog(LOG_ERR, "echo exception: %s", e.what());
   }
 }
 
@@ -56,15 +57,16 @@ awaitable<void> listener() {
     boost::system::error_code ec;
     auto endpoint = socket.remote_endpoint(ec);
     if (!ec) {
-      std::printf("connection from %s:%u\n",
-                  endpoint.address().to_string().c_str(),
-                  endpoint.port());
+      syslog(LOG_INFO, "connection from %s:%u",
+             endpoint.address().to_string().c_str(),
+             endpoint.port());
     }
     co_spawn(executor, echo(std::move(socket)), detached);
   }
 }
 
 int main() {
+  openlog("fingerd", LOG_PID, LOG_DAEMON);
   try {
     boost::asio::io_context io_context(1);
 
@@ -75,6 +77,7 @@ int main() {
 
     io_context.run();
   } catch (std::exception &e) {
-    std::printf("Exception: %s\n", e.what());
+    syslog(LOG_ERR, "fatal exception: %s", e.what());
   }
+  closelog();
 }
