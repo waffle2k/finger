@@ -9,7 +9,7 @@ services:
       - ./users:/var/finger/users
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "nc", "-z", "localhost", "79"]
+      test: ["CMD-SHELL", "nc -w 1 127.0.0.1 79 < /dev/null || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3

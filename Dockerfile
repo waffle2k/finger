@@ -56,7 +56,7 @@ EXPOSE 79
 
 # Add health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD nc -z localhost 79 || exit 1
+    CMD nc -w 1 127.0.0.1 79 < /dev/null || exit 1
 
 # Set metadata labels
 LABEL org.opencontainers.image.title="finger"
