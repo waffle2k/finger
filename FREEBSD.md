@@ -51,7 +51,7 @@ Create `/usr/local/etc/rc.d/fingerd`:
 name="fingerd"
 rcvar="fingerd_enable"
 command="/usr/sbin/daemon"
-command_args="-f -p /var/run/fingerd.pid /usr/local/bin/finger"
+command_args="-f -p /var/run/fingerd.pid -o /var/log/fingerd.log /usr/local/bin/finger"
 pidfile="/var/run/fingerd.pid"
 # procname must be the full path so rc.subr can match it against ps output
 procname="/usr/local/bin/finger"
