@@ -8,7 +8,6 @@
 #include <boost/asio/signal_set.hpp>
 #include <boost/asio/write.hpp>
 #include <cstdio>
-#include <syslog.h>
 
 #include "handler.hpp"
 
@@ -34,8 +33,8 @@ awaitable<void> echo(tcp::socket socket, std::string client_addr) {
            (username.back() == '\r' || username.back() == '\n')) {
       username.pop_back();
     }
-    syslog(LOG_INFO, "finger request from %s for user '%s'",
-           client_addr.c_str(), username.c_str());
+    std::printf("finger request from %s for user '%s'\n",
+                client_addr.c_str(), username.c_str());
     auto response = co_await dofinger(username);
     if (response.compare(std::string(username)) == 0) {
       // No plan found
@@ -47,7 +46,7 @@ awaitable<void> echo(tcp::socket socket, std::string client_addr) {
     co_await async_write(socket, boost::asio::buffer(response), deferred);
     co_return;
   } catch (std::exception &e) {
-    syslog(LOG_ERR, "echo exception: %s", e.what());
+    std::printf("echo exception: %s\n", e.what());
   }
 }
 
@@ -66,7 +65,8 @@ awaitable<void> listener() {
 }
 
 int main() {
-  openlog("fingerd", LOG_PID, LOG_DAEMON);
+  // Line-buffer stdout so docker logs / tail -f see entries in real time.
+  std::setvbuf(stdout, nullptr, _IOLBF, 0);
   try {
     boost::asio::io_context io_context(1);
 
@@ -77,7 +77,6 @@ int main() {
 
     io_context.run();
   } catch (std::exception &e) {
-    syslog(LOG_ERR, "fatal exception: %s", e.what());
+    std::printf("fatal exception: %s\n", e.what());
   }
-  closelog();
 }
