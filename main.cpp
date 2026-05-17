@@ -23,7 +23,7 @@ awaitable<std::string> dofinger(const std::string &username) {
   co_return process(username);
 }
 
-awaitable<void> echo(tcp::socket socket) {
+awaitable<void> echo(tcp::socket socket, std::string client_addr) {
   try {
     char data[1024];
     auto bytes_read =
@@ -34,6 +34,8 @@ awaitable<void> echo(tcp::socket socket) {
            (username.back() == '\r' || username.back() == '\n')) {
       username.pop_back();
     }
+    syslog(LOG_INFO, "finger request from %s for user '%s'",
+           client_addr.c_str(), username.c_str());
     auto response = co_await dofinger(username);
     if (response.compare(std::string(username)) == 0) {
       // No plan found
@@ -56,12 +58,10 @@ awaitable<void> listener() {
     tcp::socket socket = co_await acceptor.async_accept(deferred);
     boost::system::error_code ec;
     auto endpoint = socket.remote_endpoint(ec);
-    if (!ec) {
-      syslog(LOG_INFO, "connection from %s:%u",
-             endpoint.address().to_string().c_str(),
-             endpoint.port());
-    }
-    co_spawn(executor, echo(std::move(socket)), detached);
+    std::string client_addr =
+        ec ? std::string("unknown") : endpoint.address().to_string();
+    co_spawn(executor, echo(std::move(socket), std::move(client_addr)),
+             detached);
   }
 }
 
