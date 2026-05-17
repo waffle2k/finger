@@ -53,6 +53,13 @@ awaitable<void> listener() {
   tcp::acceptor acceptor(executor, {tcp::v4(), 79});
   for (;;) {
     tcp::socket socket = co_await acceptor.async_accept(deferred);
+    boost::system::error_code ec;
+    auto endpoint = socket.remote_endpoint(ec);
+    if (!ec) {
+      std::printf("connection from %s:%u\n",
+                  endpoint.address().to_string().c_str(),
+                  endpoint.port());
+    }
     co_spawn(executor, echo(std::move(socket)), detached);
   }
 }
