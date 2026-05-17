@@ -29,14 +29,19 @@ RUN meson compile -C builddir
 # Run tests to ensure quality
 RUN meson test -C builddir
 
-# Runtime stage - minimal Alpine Linux
-FROM alpine:latest
+# Runtime stage — match builder's glibc (Alpine/musl is incompatible
+# with our dynamically linked binary, esp. fortify _chk symbols).
+FROM ubuntu:24.04
 
-# Install runtime dependencies (if any)
-RUN apk add --no-cache \
-    libstdc++ \
-    && addgroup -g 1000 finger \
-    && adduser -D -s /bin/sh -u 1000 -G finger finger
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libstdc++6 \
+    netcat-openbsd \
+    && rm -rf /var/lib/apt/lists/* \
+    && (userdel -r ubuntu 2>/dev/null || true) \
+    && groupadd -g 1000 finger \
+    && useradd -m -u 1000 -g finger -s /bin/sh finger
 
 # Copy the compiled binary from builder stage
 COPY --from=builder /app/builddir/finger /usr/local/bin/finger
