@@ -83,15 +83,21 @@ client IP. In order of preference:
 
 1. **Host networking (recommended).** Add `network_mode: host` to the service
    (and drop the `ports:` mapping -- it's ignored). The daemon then binds the
-   host's port 79 directly and sees real client IPs. Non-root bind of port 79
-   still works because Docker grants `CAP_NET_BIND_SERVICE` by default. This is
-   what `docker-compose.yml` in this repo now uses.
+   host's port 79 directly and sees real client IPs. This is what
+   `docker-compose.yml` in this repo uses.
+
+   Note: under host networking the container shares the host network namespace,
+   which uses the host's privileged-port rule -- so the image's non-root user
+   (UID 1000) **cannot bind port 79** and the daemon fails to listen silently.
+   Either run as root (`user: "0:0"`, as below) or `setcap
+   cap_net_bind_service=+ep` on the binary in the image to keep it non-root.
 
    ```yaml
    services:
      finger:
        image: ghcr.io/waffle2k/finger:latest
        network_mode: host
+       user: "0:0"   # bind privileged port 79 under host networking
        volumes:
          - ./users:/var/finger/users
        restart: unless-stopped
