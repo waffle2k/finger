@@ -59,3 +59,13 @@ and execute `docker compose up -d`
 
 # Setting your status
 within the `./users` directory, create a file named after the user you wish to have a response. That's it!
+
+# Abuse protection
+Most traffic on port 79 is not finger at all -- HTTP and SIP probes, TLS
+handshakes, and username-guessing scanners. None of these resolve to a plan
+file, so the daemon treats any request that fails to read a plan as an
+"offense" and timestamps it against the source IP. When an IP records more than
+3 failures within a rolling 24-hour window, its connections are dropped
+(without being read or answered) until those failures age back out of the
+window. Legitimate lookups that hit a real plan never count against an IP. All
+state is in-memory; thresholds live in `BanTracker::Config` (`ban.hpp`).

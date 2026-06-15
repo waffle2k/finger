@@ -6,9 +6,12 @@
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/signal_set.hpp>
+#include <boost/asio/steady_timer.hpp>
 #include <boost/asio/write.hpp>
+#include <chrono>
 #include <cstdio>
 
+#include "ban.hpp"
 #include "handler.hpp"
 
 using boost::asio::awaitable;
@@ -22,8 +25,18 @@ awaitable<std::string> dofinger(const std::string &username) {
   co_return process(username);
 }
 
-awaitable<void> echo(tcp::socket socket, std::string client_addr) {
+awaitable<void> echo(tcp::socket socket, std::string client_addr,
+                     BanTracker &bans) {
   try {
+    auto now = std::chrono::steady_clock::now();
+
+    // An IP that has racked up too many failed lookups (scanners, username
+    // guessers, non-finger junk) is dropped without being read or answered.
+    if (bans.is_blocked(client_addr, now)) {
+      std::printf("finger drop from %s: blocked\n", client_addr.c_str());
+      co_return;
+    }
+
     char data[1024];
     auto bytes_read =
         co_await socket.async_read_some(boost::asio::buffer(data), deferred);
@@ -36,8 +49,19 @@ awaitable<void> echo(tcp::socket socket, std::string client_addr) {
     std::printf("finger request from %s for user '%s'\n",
                 client_addr.c_str(), username.c_str());
     auto response = co_await dofinger(username);
-    if (response.compare(std::string(username)) == 0) {
-      // No plan found
+
+    // A "failure" is simply any request that does not resolve to a readable
+    // plan file: an unknown user, rejected input, or non-finger junk. Each
+    // failure is timestamped against the client IP; once an IP exceeds the
+    // threshold within the rolling window, the is_blocked() check above starts
+    // dropping its connections. This also frustrates username guessing.
+    bool plan_served =
+        response != username && response.rfind("InvalidInput:", 0) != 0;
+    if (!plan_served) {
+      auto res = bans.record_offense(client_addr, now);
+      std::printf("finger miss from %s for '%s' (%d failures in window)%s\n",
+                  client_addr.c_str(), username.c_str(), res.count,
+                  res.blocked ? " -- now blocked" : "");
       co_await async_write(
           socket, boost::asio::buffer(std::string("No plan found\r\n")),
           deferred);
@@ -50,7 +74,7 @@ awaitable<void> echo(tcp::socket socket, std::string client_addr) {
   }
 }
 
-awaitable<void> listener() {
+awaitable<void> listener(BanTracker &bans) {
   auto executor = co_await this_coro::executor;
   tcp::acceptor acceptor(executor, {tcp::v4(), 79});
   for (;;) {
@@ -59,8 +83,19 @@ awaitable<void> listener() {
     auto endpoint = socket.remote_endpoint(ec);
     std::string client_addr =
         ec ? std::string("unknown") : endpoint.address().to_string();
-    co_spawn(executor, echo(std::move(socket), std::move(client_addr)),
+    co_spawn(executor, echo(std::move(socket), std::move(client_addr), bans),
              detached);
+  }
+}
+
+// Periodically prune offense records that have aged out of the window so the
+// tracker's memory stays bounded even for IPs that never reconnect.
+awaitable<void> sweeper(BanTracker &bans) {
+  boost::asio::steady_timer timer(co_await this_coro::executor);
+  for (;;) {
+    timer.expires_after(std::chrono::minutes(10));
+    co_await timer.async_wait(deferred);
+    bans.sweep(std::chrono::steady_clock::now());
   }
 }
 
@@ -69,11 +104,13 @@ int main() {
   std::setvbuf(stdout, nullptr, _IOLBF, 0);
   try {
     boost::asio::io_context io_context(1);
+    BanTracker bans;
 
     boost::asio::signal_set signals(io_context, SIGINT, SIGTERM);
     signals.async_wait([&](auto, auto) { io_context.stop(); });
 
-    co_spawn(io_context, listener(), detached);
+    co_spawn(io_context, listener(bans), detached);
+    co_spawn(io_context, sweeper(bans), detached);
 
     io_context.run();
   } catch (std::exception &e) {

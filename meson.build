@@ -14,7 +14,7 @@ gtest_dep = dependency('gtest', main : true, required : true)
 gmock_dep = dependency('gmock', main : true, required : true)
 
 executable('finger',
-  'main.cpp','handler.cpp',
+  'main.cpp','handler.cpp','ban.cpp',
   dependencies : [boost_dep, threads_dep],
   install : true)
 
@@ -33,7 +33,13 @@ test_real_fs_exe = executable('test_handler_real_filesystem',
   'test_handler_real_filesystem.cpp', 'handler.cpp',
   dependencies : [boost_dep, threads_dep, gtest_dep, gmock_dep])
 
+# Ban tracker test executable
+test_ban_exe = executable('test_ban',
+  'test_ban.cpp', 'ban.cpp',
+  dependencies : [boost_dep, threads_dep, gtest_dep, gmock_dep])
+
 # Register the tests
 test('handler_tests', test_exe)
 test('handler_mock_tests', test_mock_exe)
 test('handler_real_filesystem_tests', test_real_fs_exe)
+test('ban_tests', test_ban_exe)
