@@ -64,6 +64,21 @@ TEST_F(ProcessMockTest, ProcessWithEmptyFile) {
   EXPECT_EQ(result, "emptyfileuser");
 }
 
+// Username lookup is case-insensitive: a mixed-case request is lowercased
+// before the plan-file path is built, so "Pete" reads .../pete.
+TEST_F(ProcessMockTest, ProcessLowercasesUsernameForLookup) {
+  using ::testing::Return;
+  const std::filesystem::path base{"/var/finger/users/"};
+
+  EXPECT_CALL(*mock_filesystem, exists(base / "pete"))
+      .WillOnce(Return(true));
+  EXPECT_CALL(*mock_filesystem, read_file(base / "pete"))
+      .WillOnce(Return("Just another hacker.\r\n"));
+
+  std::string result = process("Pete", *mock_filesystem, base);
+  EXPECT_EQ(result, "Just another hacker.\r\n");
+}
+
 // Test showing multiple expectations
 TEST_F(ProcessMockTest, MultipleFileOperations) {
   using ::testing::_;

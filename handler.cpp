@@ -1,4 +1,6 @@
 #include "handler.hpp"
+#include <algorithm>
+#include <cctype>
 #include <filesystem>
 #include <fstream>
 #include <string_view>
@@ -65,8 +67,16 @@ std::string process(const std::string &username, const IFilesystemWrapper &fs,
     return std::string("InvalidInput: ") + e.what() + std::string("\r\n");
   }
 
+  // Plan-file lookup is case-insensitive: normalise the requested name to
+  // lower-case so e.g. "Pete" resolves the on-disk "pete" plan. Plan filenames
+  // are always lower-case; the original spelling is still echoed back below
+  // when no plan exists.
+  std::string lookup = username;
+  std::transform(lookup.begin(), lookup.end(), lookup.begin(),
+                 [](unsigned char c) { return std::tolower(c); });
+
   // Attempt to open the plan file (if any) and return the contents as a string
-  std::filesystem::path planPath = basepath / username;
+  std::filesystem::path planPath = basepath / lookup;
 
   // Check if the plan file exists using the filesystem wrapper
   if (!fs.exists(planPath)) {
