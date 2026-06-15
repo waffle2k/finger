@@ -1,4 +1,5 @@
 #include "ban.hpp"
+#include <boost/asio/ip/address.hpp>
 #include <gtest/gtest.h>
 
 using namespace std::chrono_literals;
@@ -81,6 +82,41 @@ TEST(BanTracker, RespectsCustomConfig) {
   EXPECT_TRUE(bt.record_offense("9.9.9.9", kBase).blocked);  // 2 > 1
   EXPECT_TRUE(bt.is_blocked("9.9.9.9", kBase));
   EXPECT_FALSE(bt.is_blocked("9.9.9.9", kBase + 1h + 1min)); // window elapsed
+}
+
+static bool bannable(const char *ip) {
+  return is_bannable_address(boost::asio::ip::make_address(ip));
+}
+
+TEST(BannableAddress, GlobalIpv4IsBannable) {
+  EXPECT_TRUE(bannable("8.8.8.8"));
+  EXPECT_TRUE(bannable("192.184.167.198")); // a real scanner seen in the logs
+  EXPECT_TRUE(bannable("1.2.3.4"));
+}
+
+TEST(BannableAddress, PrivateAndLocalIpv4AreNotBannable) {
+  EXPECT_FALSE(bannable("127.0.0.1"));   // loopback
+  EXPECT_FALSE(bannable("10.1.2.3"));    // 10/8
+  EXPECT_FALSE(bannable("172.20.0.1"));  // Docker bridge gateway (172.16/12)
+  EXPECT_FALSE(bannable("172.31.255.1"));
+  EXPECT_FALSE(bannable("192.168.1.104")); // the finger jail's own LAN IP
+  EXPECT_FALSE(bannable("169.254.10.1")); // link-local
+  EXPECT_FALSE(bannable("224.0.0.1"));    // multicast
+}
+
+TEST(BannableAddress, CgnatRangeIsNotBannable) {
+  EXPECT_FALSE(bannable("100.64.0.1"));   // bottom of 100.64/10 (CGNAT/Tailscale)
+  EXPECT_FALSE(bannable("100.127.255.1")); // top of the range
+  EXPECT_TRUE(bannable("100.63.255.1"));   // just below the range -> public
+  EXPECT_TRUE(bannable("100.128.0.1"));    // just above the range -> public
+}
+
+TEST(BannableAddress, Ipv6Classification) {
+  EXPECT_TRUE(bannable("2001:4860:4860::8888")); // global
+  EXPECT_FALSE(bannable("::1"));                 // loopback
+  EXPECT_FALSE(bannable("fe80::1"));             // link-local
+  EXPECT_FALSE(bannable("fc00::1"));             // unique-local
+  EXPECT_FALSE(bannable("fd12:3456::1"));        // unique-local
 }
 
 int main(int argc, char **argv) {

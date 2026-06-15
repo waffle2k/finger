@@ -25,14 +25,17 @@ awaitable<std::string> dofinger(const std::string &username) {
   co_return process(username);
 }
 
-awaitable<void> echo(tcp::socket socket, std::string client_addr,
+awaitable<void> echo(tcp::socket socket, std::string client_addr, bool trackable,
                      BanTracker &bans) {
   try {
     auto now = std::chrono::steady_clock::now();
 
     // An IP that has racked up too many failed lookups (scanners, username
     // guessers, non-finger junk) is dropped without being read or answered.
-    if (bans.is_blocked(client_addr, now)) {
+    // Only globally-routable addresses are tracked: behind Docker's bridge
+    // every client is SNAT'd to the gateway, so banning there would block
+    // everyone at once (see is_bannable_address()).
+    if (trackable && bans.is_blocked(client_addr, now)) {
       std::printf("finger drop from %s: blocked\n", client_addr.c_str());
       co_return;
     }
@@ -58,10 +61,15 @@ awaitable<void> echo(tcp::socket socket, std::string client_addr,
     bool plan_served =
         response != username && response.rfind("InvalidInput:", 0) != 0;
     if (!plan_served) {
-      auto res = bans.record_offense(client_addr, now);
-      std::printf("finger miss from %s for '%s' (%d failures in window)%s\n",
-                  client_addr.c_str(), username.c_str(), res.count,
-                  res.blocked ? " -- now blocked" : "");
+      if (trackable) {
+        auto res = bans.record_offense(client_addr, now);
+        std::printf("finger miss from %s for '%s' (%d failures in window)%s\n",
+                    client_addr.c_str(), username.c_str(), res.count,
+                    res.blocked ? " -- now blocked" : "");
+      } else {
+        std::printf("finger miss from %s for '%s' (not tracked)\n",
+                    client_addr.c_str(), username.c_str());
+      }
       co_await async_write(
           socket, boost::asio::buffer(std::string("No plan found\r\n")),
           deferred);
@@ -83,7 +91,9 @@ awaitable<void> listener(BanTracker &bans) {
     auto endpoint = socket.remote_endpoint(ec);
     std::string client_addr =
         ec ? std::string("unknown") : endpoint.address().to_string();
-    co_spawn(executor, echo(std::move(socket), std::move(client_addr), bans),
+    bool trackable = !ec && is_bannable_address(endpoint.address());
+    co_spawn(executor,
+             echo(std::move(socket), std::move(client_addr), trackable, bans),
              detached);
   }
 }

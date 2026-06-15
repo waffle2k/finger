@@ -3,8 +3,15 @@ version: '3.8'
 services:
   finger:
     build: .
-    ports:
-      - "79:79"
+    # IMPORTANT: host networking is what lets the daemon's abuse protection
+    # work. Under Docker's default bridge networking every external client is
+    # SNAT'd to the bridge gateway (a 172.16/12 address), so the daemon sees a
+    # single source IP for everyone -- the per-IP ban logic can't tell clients
+    # apart and (by design) treats that private address as untrackable, leaving
+    # banning inert. Host networking exposes the real client IP, so repeat
+    # offenders actually get blocked. (Non-root bind of port 79 still works:
+    # Docker grants CAP_NET_BIND_SERVICE by default.)
+    network_mode: host
     volumes:
       - ./users:/var/finger/users
     restart: unless-stopped
@@ -15,7 +22,10 @@ services:
       retries: 3
       start_period: 40s
 
-  # Example using published image instead of building locally
+  # Bridge-networking alternative (quick local testing only). NOTE: with this
+  # mode the daemon only ever sees the bridge gateway IP, so abuse protection
+  # is effectively disabled. Prefer host networking above for any public-facing
+  # deployment.
   # finger:
   #   image: ghcr.io/waffle2k/finger:latest
   #   ports:

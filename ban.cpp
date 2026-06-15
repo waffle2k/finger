@@ -1,5 +1,33 @@
 #include "ban.hpp"
 
+#include <cstdint>
+
+bool is_bannable_address(const boost::asio::ip::address &addr) {
+  if (addr.is_loopback() || addr.is_unspecified() || addr.is_multicast()) {
+    return false;
+  }
+
+  if (addr.is_v4()) {
+    const std::uint32_t a = addr.to_v4().to_uint();
+    if ((a & 0xFF000000u) == 0x0A000000u) return false; // 10.0.0.0/8
+    if ((a & 0xFFF00000u) == 0xAC100000u) return false; // 172.16.0.0/12
+    if ((a & 0xFFFF0000u) == 0xC0A80000u) return false; // 192.168.0.0/16
+    if ((a & 0xFFFF0000u) == 0xA9FE0000u) return false; // 169.254.0.0/16 link-local
+    if ((a & 0xFFC00000u) == 0x64400000u) return false; // 100.64.0.0/10 CGNAT / Tailscale
+    return true;
+  }
+
+  // IPv6: drop link-local (fe80::/10) and unique-local (fc00::/7).
+  const auto v6 = addr.to_v6();
+  if (v6.is_link_local()) {
+    return false;
+  }
+  if ((v6.to_bytes()[0] & 0xFEu) == 0xFCu) {
+    return false;
+  }
+  return true;
+}
+
 namespace {
 // Count timestamps that fall within (now - window, now]. The deque is kept in
 // ascending order, so the in-window entries are always a suffix.

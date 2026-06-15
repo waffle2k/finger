@@ -1,5 +1,6 @@
 #pragma once
 
+#include <boost/asio/ip/address.hpp>
 #include <chrono>
 #include <cstddef>
 #include <deque>
@@ -58,3 +59,17 @@ private:
   // monotonic, so appends are always newest-last).
   std::unordered_map<std::string, std::deque<clock::time_point>> offenders_;
 };
+
+// Whether a client address is meaningful to track and ban. Only globally
+// routable unicast addresses qualify. Loopback, RFC1918 private, CGNAT
+// (100.64/10), link-local, IPv6 unique-local, and multicast addresses all
+// return false.
+//
+// This matters because the daemon can only ban what it can see: behind Docker's
+// default bridge networking every external client is SNAT'd to the bridge
+// gateway (a 172.16/12 address), so banning per source IP would collapse all
+// clients into one and block everyone. Skipping non-global addresses makes
+// banning correct where the real client IP is visible (e.g. the FreeBSD jail,
+// where pf rdr preserves it) and inert where it is not (Docker bridge), with no
+// deployment-specific configuration.
+bool is_bannable_address(const boost::asio::ip::address &addr);

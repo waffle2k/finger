@@ -64,6 +64,50 @@ docker run -d \
   ghcr.io/waffle2k/finger:latest
 ```
 
+## Abuse protection & client IPs (important)
+
+The daemon bans source IPs that rack up repeated failed lookups (scanners, SIP/
+HTTP probes, username guessers) -- see the "Abuse protection" section in the
+main [README.md](README.md). That protection is **per source IP**, so it only
+works if the container can see the *real* client IP.
+
+Under Docker's **default bridge networking this is not the case**: published
+ports are NAT'd so every external client arrives with the bridge gateway as its
+source (e.g. `172.20.0.1`). The daemon would see one IP for the entire internet.
+By design it treats private/RFC1918 addresses as untrackable, so rather than
+blocking everyone at once, banning simply becomes **inert** under bridge
+networking.
+
+To make abuse protection actually work in Docker, give the container the real
+client IP. In order of preference:
+
+1. **Host networking (recommended).** Add `network_mode: host` to the service
+   (and drop the `ports:` mapping -- it's ignored). The daemon then binds the
+   host's port 79 directly and sees real client IPs. Non-root bind of port 79
+   still works because Docker grants `CAP_NET_BIND_SERVICE` by default. This is
+   what `docker-compose.yml` in this repo now uses.
+
+   ```yaml
+   services:
+     finger:
+       image: ghcr.io/waffle2k/finger:latest
+       network_mode: host
+       volumes:
+         - ./users:/var/finger/users
+       restart: unless-stopped
+   ```
+
+2. **macvlan network.** Give the container its own IP on the LAN. More setup,
+   but keeps the container off host networking.
+
+3. **Disable the userland proxy host-wide** (`/etc/docker/daemon.json`:
+   `{"userland-proxy": false}`, then restart dockerd). iptables DNAT then
+   preserves the source IP on published ports. This is a host-wide change that
+   restarts every container on the host -- avoid it on busy multi-service hosts.
+
+Note: bans are in-memory, so they reset when the container restarts -- the same
+trade-off as any single-process deployment.
+
 ## Docker Architecture
 
 ### Multi-stage Build
