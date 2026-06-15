@@ -1,5 +1,6 @@
 #include <iostream>
 
+#include <boost/asio/as_tuple.hpp>
 #include <boost/asio/co_spawn.hpp>
 #include <boost/asio/deferred.hpp>
 #include <boost/asio/detached.hpp>
@@ -41,8 +42,14 @@ awaitable<void> echo(tcp::socket socket, std::string client_addr, bool trackable
     }
 
     char data[1024];
-    auto bytes_read =
-        co_await socket.async_read_some(boost::asio::buffer(data), deferred);
+    auto [read_ec, bytes_read] = co_await socket.async_read_some(
+        boost::asio::buffer(data), boost::asio::as_tuple(deferred));
+    if (read_ec) {
+      // Client hung up before sending a request: health checks (which connect
+      // and immediately close), port scanners, and reset connections all land
+      // here. This is normal -- don't log it as an exception.
+      co_return;
+    }
     std::string username(data, bytes_read);
     // Remove trailing \r\n characters
     while (!username.empty() &&
@@ -70,12 +77,15 @@ awaitable<void> echo(tcp::socket socket, std::string client_addr, bool trackable
         std::printf("finger miss from %s for '%s' (not tracked)\n",
                     client_addr.c_str(), username.c_str());
       }
-      co_await async_write(
-          socket, boost::asio::buffer(std::string("No plan found\r\n")),
-          deferred);
+      // Best-effort reply; ignore write errors (the client may have already
+      // gone away).
+      co_await async_write(socket,
+                           boost::asio::buffer(std::string("No plan found\r\n")),
+                           boost::asio::as_tuple(deferred));
       co_return;
     }
-    co_await async_write(socket, boost::asio::buffer(response), deferred);
+    co_await async_write(socket, boost::asio::buffer(response),
+                         boost::asio::as_tuple(deferred));
     co_return;
   } catch (std::exception &e) {
     std::printf("echo exception: %s\n", e.what());
