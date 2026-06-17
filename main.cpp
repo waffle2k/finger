@@ -11,6 +11,9 @@
 #include <boost/asio/write.hpp>
 #include <chrono>
 #include <cstdio>
+#include <cstdlib>
+#include <string>
+#include <unordered_set>
 
 #include "ban.hpp"
 #include "handler.hpp"
@@ -92,7 +95,8 @@ awaitable<void> echo(tcp::socket socket, std::string client_addr, bool trackable
   }
 }
 
-awaitable<void> listener(BanTracker &bans) {
+awaitable<void> listener(BanTracker &bans,
+                         const std::unordered_set<std::string> &allowlist) {
   auto executor = co_await this_coro::executor;
   tcp::acceptor acceptor(executor, {tcp::v4(), 79});
   for (;;) {
@@ -101,7 +105,11 @@ awaitable<void> listener(BanTracker &bans) {
     auto endpoint = socket.remote_endpoint(ec);
     std::string client_addr =
         ec ? std::string("unknown") : endpoint.address().to_string();
-    bool trackable = !ec && is_bannable_address(endpoint.address());
+    // Allowlisted IPs (trusted aggregating front-ends like the finger-web
+    // proxy) are never tracked, so their bursts neither block them nor count
+    // as offenses.
+    bool trackable = !ec && is_bannable_address(endpoint.address()) &&
+                     allowlist.find(client_addr) == allowlist.end();
     co_spawn(executor,
              echo(std::move(socket), std::move(client_addr), trackable, bans),
              detached);
@@ -126,10 +134,17 @@ int main() {
     boost::asio::io_context io_context(1);
     BanTracker bans;
 
+    const char *allow_env = std::getenv("FINGER_BAN_ALLOWLIST");
+    const std::unordered_set<std::string> allowlist =
+        parse_ip_allowlist(allow_env ? allow_env : "");
+    for (const auto &ip : allowlist) {
+      std::printf("ban allowlist: %s (never tracked or blocked)\n", ip.c_str());
+    }
+
     boost::asio::signal_set signals(io_context, SIGINT, SIGTERM);
     signals.async_wait([&](auto, auto) { io_context.stop(); });
 
-    co_spawn(io_context, listener(bans), detached);
+    co_spawn(io_context, listener(bans, allowlist), detached);
     co_spawn(io_context, sweeper(bans), detached);
 
     io_context.run();

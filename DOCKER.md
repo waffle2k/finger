@@ -114,6 +114,24 @@ client IP. In order of preference:
 Note: bans are in-memory, so they reset when the container restarts -- the same
 trade-off as any single-process deployment.
 
+### Allowlisting a trusted front-end (`FINGER_BAN_ALLOWLIST`)
+
+Set `FINGER_BAN_ALLOWLIST` to a comma-separated list of client IPs that should
+never be tracked or banned. This is for trusted aggregating front-ends: the
+[`finger-web`](https://github.com/waffle2k/finger-web) proxy, for example,
+funnels every federated lookup through a single IP, so a burst from any one of
+*its* clients would otherwise be attributed to the proxy and ban it for
+everyone. Per-client abuse protection for that path lives in the proxy (it rate
+limits per real client IP), so the daemon should trust the proxy IP:
+
+```yaml
+environment:
+  - FINGER_BAN_ALLOWLIST=203.0.113.10,2001:db8::10
+```
+
+Addresses are matched verbatim against the connecting socket's address, so use
+canonical forms. Leave it unset for a directly-exposed daemon.
+
 ## Docker Architecture
 
 ### Multi-stage Build

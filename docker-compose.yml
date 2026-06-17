@@ -17,6 +17,14 @@ services:
     # Run as root to bind it. (Alternative: setcap cap_net_bind_service on the
     # binary in the image to keep it non-root.)
     user: "0:0"
+    # FINGER_BAN_ALLOWLIST: comma-separated client IPs that are never tracked or
+    # banned. Use it for trusted aggregating front-ends — e.g. the finger-web
+    # proxy, which funnels every federated lookup through one IP; without an
+    # allowlist a burst from any single client of the proxy is attributed to the
+    # proxy and bans it for everyone (per-client abuse protection for that path
+    # lives in the proxy). Leave unset for a directly-exposed daemon.
+    # environment:
+    #   - FINGER_BAN_ALLOWLIST=203.0.113.10,2001:db8::10
     volumes:
       - ./users:/var/finger/users
     restart: unless-stopped

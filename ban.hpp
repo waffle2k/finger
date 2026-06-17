@@ -5,7 +5,9 @@
 #include <cstddef>
 #include <deque>
 #include <string>
+#include <string_view>
 #include <unordered_map>
+#include <unordered_set>
 
 // BanTracker records the timestamps of "offenses" -- requests that are
 // obviously not finger queries -- per client IP, over a rolling time window.
@@ -73,3 +75,16 @@ private:
 // where pf rdr preserves it) and inert where it is not (Docker bridge), with no
 // deployment-specific configuration.
 bool is_bannable_address(const boost::asio::ip::address &addr);
+
+// Parse a comma-separated list of IP addresses (the value of the
+// FINGER_BAN_ALLOWLIST env var) into a set of address strings. Whitespace
+// around each entry is trimmed and empty entries are skipped. The strings are
+// matched verbatim against boost::asio's address().to_string() output, so use
+// canonical forms (e.g. "147.182.255.203", "2a01:4f8:190:7447::2").
+//
+// Allowlisting exists for trusted aggregating front-ends — notably the
+// finger-web proxy, which funnels every federated lookup through one IP. Without
+// it, a burst from any single client of the proxy is attributed to the proxy's
+// IP and bans the proxy for everyone; per-client abuse protection for that path
+// lives in the proxy instead.
+std::unordered_set<std::string> parse_ip_allowlist(std::string_view csv);

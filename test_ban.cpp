@@ -119,6 +119,33 @@ TEST(BannableAddress, Ipv6Classification) {
   EXPECT_FALSE(bannable("fd12:3456::1"));        // unique-local
 }
 
+TEST(IpAllowlist, ParsesCommaSeparatedTrimmedEntries) {
+  auto a = parse_ip_allowlist("147.182.255.203, 10.0.0.1 ,\t2a01:4f8:190:7447::2");
+  EXPECT_EQ(a.size(), 3u);
+  EXPECT_TRUE(a.count("147.182.255.203"));
+  EXPECT_TRUE(a.count("10.0.0.1"));
+  EXPECT_TRUE(a.count("2a01:4f8:190:7447::2"));
+}
+
+TEST(IpAllowlist, SingleEntryNoCommas) {
+  auto a = parse_ip_allowlist("147.182.255.203");
+  EXPECT_EQ(a.size(), 1u);
+  EXPECT_TRUE(a.count("147.182.255.203"));
+}
+
+TEST(IpAllowlist, EmptyAndBlankYieldEmptySet) {
+  EXPECT_TRUE(parse_ip_allowlist("").empty());
+  EXPECT_TRUE(parse_ip_allowlist("   ").empty());
+  EXPECT_TRUE(parse_ip_allowlist(",, ,\t,").empty()); // only separators/blanks
+}
+
+TEST(IpAllowlist, IgnoresEmptyEntriesBetweenCommas) {
+  auto a = parse_ip_allowlist("8.8.8.8,,9.9.9.9,");
+  EXPECT_EQ(a.size(), 2u);
+  EXPECT_TRUE(a.count("8.8.8.8"));
+  EXPECT_TRUE(a.count("9.9.9.9"));
+}
+
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

@@ -1,6 +1,7 @@
 #include "ban.hpp"
 
 #include <cstdint>
+#include <string>
 
 bool is_bannable_address(const boost::asio::ip::address &addr) {
   if (addr.is_loopback() || addr.is_unspecified() || addr.is_multicast()) {
@@ -26,6 +27,27 @@ bool is_bannable_address(const boost::asio::ip::address &addr) {
     return false;
   }
   return true;
+}
+
+std::unordered_set<std::string> parse_ip_allowlist(std::string_view csv) {
+  std::unordered_set<std::string> out;
+  std::size_t start = 0;
+  while (start <= csv.size()) {
+    const std::size_t comma = csv.find(',', start);
+    const std::size_t end =
+        (comma == std::string_view::npos) ? csv.size() : comma;
+    std::string_view tok = csv.substr(start, end - start);
+    const std::size_t a = tok.find_first_not_of(" \t\r\n");
+    if (a != std::string_view::npos) {
+      const std::size_t b = tok.find_last_not_of(" \t\r\n");
+      out.emplace(tok.substr(a, b - a + 1));
+    }
+    if (comma == std::string_view::npos) {
+      break;
+    }
+    start = comma + 1;
+  }
+  return out;
 }
 
 namespace {
